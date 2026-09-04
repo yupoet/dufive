@@ -1,0 +1,53 @@
+# dufive build of Rapfi.
+#
+# Derived from Networks/config-example/gomocalc-classical220723.toml with two
+# changes required by the browser build:
+#   * coord_conversion_mode = "none"  (the app speaks raw Piskvork coordinates)
+#   * the classical yixindb evaluator, whose weights are 77 KB, instead of the
+#     30 MB mix9svq NNUE networks.
+#
+# Search depth and thinking time are controlled per move through the Piskvork
+# INFO commands, so the values here are only defaults.
+
+[requirement]
+min_version = [0, 41, 1]
+
+[general]
+reload_config_each_move = false
+clear_hash_after_config_loaded = false
+default_thread_num = 1
+message_mode = "normal"
+coord_conversion_mode = "none"
+default_candidate_range = "square3_line4"
+memory_reserved_mb = 0
+default_tt_size_kb = 16384
+
+[model]
+binary_file = "model220723.bin"
+
+[search]
+aspiration_window = true
+num_iteration_after_mate = 24
+num_iteration_after_singular_root = 24
+max_search_depth = 99
+
+[search.timectl]
+match_space = 21.0
+match_space_min = 7.0
+average_branch_factor = 1.7
+advanced_stop_ratio = 0.75
+move_horizon = 64
+
+[database]
+enable_by_default = false
+type = "yixindb"
+url = "rapfi.db"
+
+[database.yixindb]
+compressed_save = true
+save_on_close = false
+num_backups_on_save = 0
+ignore_corrupted = true
+
+[database.search]
+readonly_mode = true

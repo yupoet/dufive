@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.wrangler/
+.env
+.env.*
+!.env.example
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/build/
+*.apk
+*.aab
+coverage/
+playwright-report/
+test-results/

@@ -1,0 +1,4 @@
+android/gradlew.bat -text -whitespace
+*.wasm binary
+*.jar binary
+*.png binary
