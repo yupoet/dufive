@@ -50,12 +50,30 @@ interface QueueJob {
 const DEFAULT_BOOT_TIMEOUT_MS = 30_000
 const DEFAULT_SEARCH_TIMEOUT_MS = 30_000
 
-function defaultWorkerFactory(): EngineWorkerPort {
-  const baseUrl = typeof document === 'undefined'
+/**
+ * Resolves the worker URL against the directory that holds the document.
+ *
+ * `new URL('engine/...', baseURI)` already drops the last path segment, but
+ * that treats a directory-style URL such as `https://host/app` as a file and
+ * resolves to `https://host/engine/...`. For a PWA that can be served from any
+ * sub-path, the last segment is a directory whenever it has no extension, so
+ * it is normalised explicitly.
+ */
+function defaultWorkerUrl(): URL {
+  const href = typeof document === 'undefined'
     ? globalThis.location.href
     : document.baseURI
-  const workerUrl = new URL('engine/rapfi/worker-rapfi.js', baseUrl)
-  return new Worker(workerUrl, { name: 'dufive-rapfi' }) as unknown as EngineWorkerPort
+  const base = new URL(href)
+  if (!base.pathname.endsWith('/')) {
+    base.pathname = base.pathname.replace(/[^/]*$/, '')
+  }
+  return new URL('engine/rapfi/worker-rapfi.js', base)
+}
+
+function defaultWorkerFactory(): EngineWorkerPort {
+  return new Worker(defaultWorkerUrl(), {
+    name: 'dufive-rapfi',
+  }) as unknown as EngineWorkerPort
 }
 
 function errorMessage(error: unknown): string {

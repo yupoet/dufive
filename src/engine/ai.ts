@@ -87,9 +87,10 @@ export function chooseMove(request: MoveRequest): MoveDecision {
       const win = findVcfWin(cells, size, color, VCF_DEPTH, {
         deadline,
         exactFiveForBlack: request.exactFiveForBlack,
+        forbidden: request.forbidden,
         shouldStop: request.shouldStop,
       })
-      if (win !== null && !request.forbidden?.(win)) {
+      if (win !== null) {
         return { index: win, score: FIVE, nodes: 0, depth: 1, source: 'vcf' }
       }
     } catch (error) {

@@ -259,28 +259,39 @@ export function findVcfWin(
   size: number,
   color: Cell,
   maxDepth: number,
-  limits: Pick<SearchLimits, 'deadline' | 'exactFiveForBlack' | 'shouldStop'>,
+  limits: Pick<
+    SearchLimits,
+    'deadline' | 'exactFiveForBlack' | 'shouldStop' | 'forbidden'
+  >,
 ): number | null {
   const exactFiveFor = (side: Cell): boolean =>
     limits.exactFiveForBlack === true && side === BLACK
+
+  /** Points `side` may legally play; renju black cannot use forbidden points. */
+  const playable = (side: Cell) => (index: number): boolean => {
+    if (cells[index] !== EMPTY) return false
+    if (side === BLACK && limits.forbidden?.(index)) return false
+    return true
+  }
 
   const step = (depth: number): number | null => {
     if (depth <= 0) return null
     if (Date.now() > limits.deadline) throw new SearchTimeout()
     if (limits.shouldStop?.()) throw new SearchTimeout()
 
+    const canPlay = playable(color)
     const immediate = completionPoints(
       cells,
       size,
       color,
       exactFiveFor(color),
-    )
+    ).filter(canPlay)
     if (immediate.length > 0) return immediate[0] ?? null
 
     const rival = other(color)
     const fours: ScoredMove[] = []
     for (const index of candidateIndexes(cells, size)) {
-      if (cells[index] !== EMPTY) continue
+      if (!canPlay(index)) continue
       const threat = pointThreat(cells, size, index, color)
       if (threat >= FOUR) fours.push({ index, score: threat })
     }
@@ -292,18 +303,28 @@ export function findVcfWin(
       // A SearchTimeout can unwind from the recursion, so both stones are
       // removed on every path.
       try {
-        const blocks = completionPoints(cells, size, color, exactFiveFor(color))
+        // Under renju rules black may be unable to block legally at all, so
+        // defences are filtered by legality before they are counted.
+        const legalBlocks = completionPoints(
+          cells,
+          size,
+          color,
+          exactFiveFor(color),
+        ).filter(playable(rival))
         const rivalWinsNow = completionPoints(
           cells,
           size,
           rival,
           exactFiveFor(rival),
-        ).length > 0
+        ).some(playable(rival))
 
-        if (blocks.length >= 2) {
+        if (legalBlocks.length === 0) {
+          // The only defence is a forbidden point, so this four wins outright.
+          won = move.index
+        } else if (legalBlocks.length >= 2) {
           won = rivalWinsNow ? null : move.index
-        } else if (blocks.length === 1 && !rivalWinsNow) {
-          const block = blocks[0] as number
+        } else if (!rivalWinsNow) {
+          const block = legalBlocks[0] as number
           cells[block] = rival
           try {
             won = step(depth - 1)

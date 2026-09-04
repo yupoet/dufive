@@ -121,6 +121,9 @@ describe('chooseMove', () => {
       size: SIZE,
       color: BLACK,
       strength: 'medium',
+      // The medium profile adds 12% randomness; pin it so the assertion is
+      // about blocking, not about the dice.
+      random: () => 1,
     })
 
     expect([at(2, 5), at(7, 5)]).toContain(decision.index)
@@ -155,6 +158,7 @@ describe('chooseMove', () => {
       color: BLACK,
       strength: 'medium',
       forbidden: (index) => index === at(7, 6),
+      random: () => 1,
     })
 
     expect(decision.index).not.toBe(at(7, 6))
@@ -260,5 +264,62 @@ describe('searchBest', () => {
     })
 
     expect([...cells]).toEqual(before)
+  })
+})
+
+describe('VCF with renju restrictions', () => {
+  it('does not start a forced win on a forbidden point', () => {
+    const cells = emptyBoard()
+    // Two threes that a VCF would normally drive with fours.
+    place(cells, [
+      [4, 4, BLACK], [5, 4, BLACK], [6, 4, BLACK],
+      [4, 6, BLACK], [5, 6, BLACK], [6, 6, BLACK],
+      [0, 12, WHITE], [1, 12, WHITE],
+    ])
+
+    // Every point the VCF wants to use is forbidden, so there is no win.
+    const allForbidden = () => true
+    const win = findVcfWin(cells, SIZE, BLACK, 8, {
+      deadline: Date.now() + 5_000,
+      forbidden: allForbidden,
+    })
+
+    expect(win).toBeNull()
+  })
+
+  it('still finds a forced win when the path is legal', () => {
+    const cells = emptyBoard()
+    place(cells, [
+      [4, 4, BLACK], [5, 4, BLACK], [6, 4, BLACK],
+      [4, 6, BLACK], [5, 6, BLACK], [6, 6, BLACK],
+      [0, 12, WHITE], [1, 12, WHITE],
+    ])
+
+    const win = findVcfWin(cells, SIZE, BLACK, 8, {
+      deadline: Date.now() + 5_000,
+      forbidden: () => false,
+    })
+
+    expect(win).not.toBeNull()
+  })
+
+  it('wins when the only block left to the defender is forbidden', () => {
+    const cells = emptyBoard()
+    // White has three in a row; black stones close the left end, so the four
+    // white is about to make can only be answered at (7,7).
+    place(cells, [
+      [3, 7, WHITE], [4, 7, WHITE], [5, 7, WHITE],
+      [2, 7, BLACK],
+      [0, 0, BLACK], [1, 0, BLACK], [2, 0, BLACK],
+    ])
+
+    // White attacks, so the defender is black and renju restrictions apply.
+    const win = findVcfWin(cells, SIZE, WHITE, 4, {
+      deadline: Date.now() + 2_000,
+      forbidden: (index) => index === at(7, 7),
+    })
+
+    // (6,7) makes a four whose single defence is illegal for black.
+    expect(win).toBe(at(6, 7))
   })
 })
