@@ -148,6 +148,45 @@ try {
   )
   console.log('✅ 黑方长连禁手被拦下')
 
+  // ---------------------------------------------------------- 离线模式
+  // The service worker precaches the app shell and both engines; wait for it
+  // to be active, then cut the network and prove the game still runs.
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.context().setOffline(true)
+  try {
+    await page.reload({ waitUntil: 'load' })
+    await page.getByTestId('main-menu').waitFor({ timeout: 15_000 })
+
+    await clickButton('双人对弈')
+    await page.getByTestId('start-game').click()
+    await page.getByTestId('gomoku-board').waitFor()
+    await page.getByTestId('point-7-7').click()
+    check(
+      (await stoneClass(7, 7))?.includes('has-black'),
+      '离线模式下无法落子',
+    )
+
+    // The Rapfi module must also be served from the cache offline. Workbox
+    // stores precached URLs with a revision query, so scan the cache keys
+    // instead of matching an exact URL.
+    const rapfiCached = await page.evaluate(async () => {
+      for (const name of await caches.keys()) {
+        const cache = await caches.open(name)
+        const requests = await cache.keys()
+        if (requests.some((request) => request.url.includes('rapfi.wasm'))) {
+          return true
+        }
+      }
+      return false
+    })
+    check(rapfiCached, 'Rapfi WASM 没有被 Service Worker 预缓存')
+
+    await page.screenshot({ path: `${SHOT_DIR}/04-offline.png` })
+    console.log('✅ 断网后 PWA 仍可对弈，Rapfi 已预缓存')
+  } finally {
+    await page.context().setOffline(false)
+  }
+
   console.log('\n全部冒烟检查通过。')
 } finally {
   if (errors.length > 0) {
