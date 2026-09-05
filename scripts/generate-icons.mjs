@@ -67,9 +67,9 @@ const WOOD_LIGHT = [0xe8, 0xbd, 0x72]
 const WOOD_DARK = [0xc0, 0x7c, 0x37]
 const LINE = [0x5d, 0x3a, 0x17]
 
-function renderIcon(size) {
+function renderIcon(size, boardFraction = 1) {
   const pixels = Buffer.alloc(size * size * 4)
-  const scale = size / 64
+  const scale = (size / 64) * boardFraction
 
   const put = (x, y, [r, g, b], alpha = 255) => {
     if (x < 0 || y < 0 || x >= size || y >= size) return
@@ -98,17 +98,39 @@ function renderIcon(size) {
     }
   }
 
+  // Splash backgrounds keep the app palette; plain icons fill the canvas.
+  const margin = Math.round((size * (1 - boardFraction)) / 2)
+  if (boardFraction < 1) {
+    const felt = [0x10, 0x24, 0x1b]
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        put(x, y, felt)
+      }
+    }
+  }
+
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
+      if (boardFraction < 1) {
+        // Skip the margin; the board occupies the centred square.
+        if (
+          x < margin || y < margin
+          || x >= size - margin || y >= size - margin
+        ) continue
+      }
       const t = (x / size + y / size) / 2
       put(x, y, mix(WOOD_LIGHT, WOOD_DARK, t))
     }
   }
 
+  const base = boardFraction < 1 ? margin : 0
+  const span = size - 2 * base
+  const gridScale = span / 64
   for (let index = 0; index < 5; index += 1) {
-    const offset = (12 + index * 10) * scale
-    const thickness = Math.max(1, Math.round(scale))
-    for (let p = 0; p < size; p += 1) {
+    const offset = base + (12 + index * 10) * gridScale
+    const thickness = Math.max(1, Math.round(gridScale))
+    const limit = base + span
+    for (let p = base; p < limit; p += 1) {
       for (let t = 0; t < thickness; t += 1) {
         put(Math.round(offset) + t, p, LINE, 90)
         put(p, Math.round(offset) + t, LINE, 90)
@@ -118,12 +140,12 @@ function renderIcon(size) {
 
   const stone = (cx, cy, radius, dark) => {
     if (dark) {
-      fillCircle(Math.round(cx * scale), Math.round(cy * scale), radius * scale, (nx, ny) => {
+      fillCircle(base + Math.round(cx * gridScale), base + Math.round(cy * gridScale), radius * gridScale, (nx, ny) => {
         const t = Math.min(1, Math.hypot(nx + 0.34, ny + 0.28) / 1.4)
         return mix([0x5d, 0x61, 0x69], [0x05, 0x06, 0x08], t)
       })
     } else {
-      fillCircle(Math.round(cx * scale), Math.round(cy * scale), radius * scale, (nx, ny) => {
+      fillCircle(base + Math.round(cx * gridScale), base + Math.round(cy * gridScale), radius * gridScale, (nx, ny) => {
         const t = Math.min(1, Math.hypot(nx + 0.32, ny + 0.26) / 1.4)
         return mix([0xff, 0xff, 0xff], [0xc8, 0xc1, 0xb5], t)
       })
@@ -143,3 +165,16 @@ for (const size of [192, 512]) {
   await writeFile(join(OUT_DIR, `dufive-${size}.png`), renderIcon(size))
   console.log(`wrote icons/dufive-${size}.png`)
 }
+
+// Capacitor source assets for the Android build.
+const ASSET_DIR = join(dirname(OUT_DIR), '..', 'assets')
+await mkdir(ASSET_DIR, { recursive: true })
+await writeFile(join(ASSET_DIR, 'icon-only.png'), renderIcon(1024))
+console.log('wrote assets/icon-only.png')
+await writeFile(join(ASSET_DIR, 'icon-foreground.png'), renderIcon(512, 0.62))
+console.log('wrote assets/icon-foreground.png')
+await writeFile(join(ASSET_DIR, 'icon-background.png'), renderIcon(512, 0))
+console.log('wrote assets/icon-background.png')
+await writeFile(join(ASSET_DIR, 'splash.png'), renderIcon(2732, 0.52))
+await writeFile(join(ASSET_DIR, 'splash-dark.png'), renderIcon(2732, 0.52))
+console.log('wrote assets/splash.png / splash-dark.png')

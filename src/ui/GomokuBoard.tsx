@@ -13,6 +13,7 @@ import type {
   Color,
   Point,
 } from '../game/types'
+import { COORDINATE_LETTERS } from '../game/record'
 
 export interface GomokuBoardProps {
   readonly size: BoardSize
@@ -29,7 +30,6 @@ export interface GomokuBoardProps {
 
 const GRID_STEP = 24
 const BOARD_PADDING = 26
-const COORDINATE_LETTERS = 'ABCDEFGHJKLMNOPQRST'
 
 function starPoints(size: BoardSize): readonly Point[] {
   if (size === 13) {

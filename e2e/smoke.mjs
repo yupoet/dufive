@@ -19,6 +19,11 @@ const page = await browser.newPage({
   isMobile: true,
 })
 
+// The clipboard export needs an explicit grant in headless Chromium.
+await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], {
+  origin: new URL(BASE_URL).origin,
+})
+
 const errors = []
 page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`))
 page.on('console', (message) => {
@@ -84,6 +89,35 @@ try {
     '撤销后最后一手没有收回',
   )
   console.log('✅ 撤销完整恢复棋盘')
+
+  // ---------------------------------------------------------- 棋谱回放
+  await page.getByTestId('replay-back').click()
+  check(
+    (await page.getByTestId('replay-counter').textContent())?.trim() === '7 / 8',
+    '回退一手后计数器不正确',
+  )
+  await page.getByTestId('replay-start').click()
+  check(
+    (await stoneClass(0, 0))?.includes('is-empty'),
+    '回到开局后棋盘没有清空',
+  )
+  await page.getByTestId('move-3').click()
+  check(
+    (await page.getByTestId('replay-counter').textContent())?.trim() === '3 / 8',
+    '点击着法没有跳到对应手数',
+  )
+  await page.getByTestId('replay-live').click()
+  check(
+    (await page.getByTestId('replay-counter').textContent())?.trim() === '8 / 8',
+    '回到最新后计数器不正确',
+  )
+  await page.getByTestId('copy-text').click()
+  await page.waitForFunction(
+    () => document.querySelector('.paris-card p')?.textContent?.includes('剪贴板') === true,
+    undefined,
+    { timeout: 5_000 },
+  )
+  console.log('✅ 棋谱回放导航与导出')
 
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByTestId('exit').click()

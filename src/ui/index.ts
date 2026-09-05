@@ -4,6 +4,8 @@ export { default as GomokuBoard } from './GomokuBoard'
 export type { GomokuBoardProps } from './GomokuBoard'
 export { default as Hud } from './Hud'
 export type { EngineStatusTone, HudProps } from './Hud'
+export { default as MoveList } from './MoveList'
+export type { MoveListProps } from './MoveList'
 export { default as MainMenu } from './MainMenu'
 export type {
   EngineChoice,

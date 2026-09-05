@@ -272,3 +272,87 @@ describe('game store orchestration', () => {
     expect(stored.boardSize).toBe(13)
   })
 })
+
+describe('replay navigation', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    resetGameStoreForTests()
+    replaceEngineForTests(new ImmediateEngine())
+  })
+
+  it('steps back into the record and forward back to live', async () => {
+    useGameStore.getState().startGame()
+    useGameStore.getState().playAt({ x: 2, y: 2 })
+    await flush()
+    expect(useGameStore.getState().game.moveNumber).toBe(2)
+
+    useGameStore.getState().stepByPlies(-1)
+    expect(useGameStore.getState().viewPly).toBe(1)
+
+    useGameStore.getState().stepByPlies(-1)
+    expect(useGameStore.getState().viewPly).toBe(0)
+
+    useGameStore.getState().stepByPlies(1)
+    expect(useGameStore.getState().viewPly).toBe(1)
+
+    // Stepping onto the newest ply returns to the live position.
+    useGameStore.getState().stepByPlies(1)
+    expect(useGameStore.getState().viewPly).toBeNull()
+  })
+
+  it('clamps jumps to the record length', () => {
+    useGameStore.getState().startGame()
+    useGameStore.getState().playAt({ x: 2, y: 2 })
+    useGameStore.getState().setViewPly(99)
+    expect(useGameStore.getState().viewPly).toBe(1)
+    useGameStore.getState().setViewPly(-4)
+    expect(useGameStore.getState().viewPly).toBe(0)
+  })
+
+  it('clicking the board while replaying returns to live without playing', async () => {
+    useGameStore.getState().startGame()
+    useGameStore.getState().playAt({ x: 2, y: 2 })
+    await flush()
+    useGameStore.getState().stepByPlies(-1)
+    expect(useGameStore.getState().viewPly).toBe(1)
+
+    useGameStore.getState().playAt({ x: 5, y: 5 })
+    expect(useGameStore.getState().viewPly).toBeNull()
+    // Two moves existed (human + engine); the click must not add a third.
+    expect(useGameStore.getState().game.moveNumber).toBe(2)
+    expect(useGameStore.getState().game.board[5 * 15 + 5]).toBeNull()
+  })
+
+  it('refuses to export an empty record', async () => {
+    useGameStore.getState().startGame()
+    await useGameStore.getState().copyRecord('sgf')
+    expect(useGameStore.getState().errorMessage).toContain('没有可导出')
+  })
+
+  it('copies a record to the clipboard', async () => {
+    // jsdom does not implement the async clipboard API, so stub it.
+    const writes: string[] = []
+    const descriptor = {
+      value: {
+        writeText: (text: string) => {
+          writes.push(text)
+          return Promise.resolve()
+        },
+      },
+      configurable: true,
+    }
+    Object.defineProperty(navigator, 'clipboard', descriptor)
+
+    try {
+      useGameStore.getState().startGame()
+      useGameStore.getState().playAt({ x: 7, y: 7 })
+      await useGameStore.getState().copyRecord('sgf')
+      await useGameStore.getState().copyRecord('text')
+
+      expect(writes[0]).toContain('GM[4]')
+      expect(writes[1]).toContain('H8')
+    } finally {
+      delete (navigator as { clipboard?: unknown }).clipboard
+    }
+  })
+})

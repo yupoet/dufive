@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { forbiddenIndexes } from '../game/forbidden'
+import { exportRecord } from '../game/record'
 import {
   createGame,
   playMove,
@@ -56,6 +57,8 @@ export interface DufiveState extends StoredPreferences {
   isAiThinking: boolean
   isHinting: boolean
   hintPoint: Point | null
+  /** Move shown by the replay view; null means the live position. */
+  viewPly: number | null
   parisText: string
   errorMessage: string | null
   setBoardSize: (size: BoardSize) => void
@@ -73,6 +76,10 @@ export interface DufiveState extends StoredPreferences {
   resignGame: () => void
   requestHint: () => Promise<void>
   runAiTurn: () => Promise<void>
+  setViewPly: (ply: number | null) => void
+  stepByPlies: (plies: number) => void
+  jumpToLive: () => void
+  copyRecord: (format: 'sgf' | 'text') => Promise<void>
 }
 
 const STORAGE_KEY = 'dufive-preferences-v1'
@@ -239,6 +246,7 @@ function commitResult(
   useGameStore.setState({
     game: result.state,
     hintPoint: null,
+    viewPly: null,
     errorMessage: null,
     // A move invalidates any hint that was still being computed.
     isHinting: false,
@@ -267,6 +275,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
   isAiThinking: false,
   isHinting: false,
   hintPoint: null,
+  viewPly: null,
   parisText: '挑一张棋盘，我们从第一手开始。',
   errorMessage: null,
 
@@ -324,6 +333,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
       isAiThinking: false,
       isHinting: false,
       hintPoint: null,
+      viewPly: null,
       errorMessage: null,
       parisText: state.gameMode === 'local-two-player'
         ? '黑方先行。两位棋手在同一块棋盘上轮流落子。'
@@ -409,6 +419,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
       isAiThinking: false,
       isHinting: false,
       hintPoint: null,
+      viewPly: null,
       errorMessage: null,
       parisText: '棋局已经收好，随时可以再开一盘。',
     })
@@ -420,7 +431,12 @@ export const useGameStore = create<DufiveState>((set, get) => ({
 
   playAt: (point) => {
     const state = get()
-    if (state.screen !== 'game' || state.game.phase !== 'playing') return
+    if (state.screen !== 'game') return
+    if (state.viewPly !== null) {
+      set({ viewPly: null, errorMessage: null })
+      return
+    }
+    if (state.game.phase !== 'playing') return
     if (
       state.gameMode === 'human-vs-engine'
       && (state.isAiThinking || state.game.toPlay !== state.humanColor)
@@ -466,6 +482,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
       isAiThinking: false,
       isHinting: false,
       hintPoint: null,
+      viewPly: null,
       engineStatus: state.gameMode === 'human-vs-engine' ? 'ready' : 'idle',
       errorMessage: null,
       parisText: '已经退回上一手。换个方向再想想。',
@@ -611,6 +628,56 @@ export const useGameStore = create<DufiveState>((set, get) => ({
       if (activeAbortController === controller) activeAbortController = null
     }
   },
+
+  setViewPly: (ply) => {
+    const state = get()
+    if (state.screen !== 'game') return
+    if (ply === null) {
+      set({ viewPly: null, errorMessage: null })
+      return
+    }
+    const total = state.game.moves.length
+    set({ viewPly: Math.min(Math.max(ply, 0), total), errorMessage: null })
+  },
+
+  /**
+   * Steps through the record. Stepping onto the newest ply returns to the
+   * live position, so a finished game can be walked to the end and then
+   * played on if it is still open.
+   */
+  stepByPlies: (plies) => {
+    const state = get()
+    const total = state.game.moves.length
+    const current = state.viewPly ?? total
+    const next = Math.min(Math.max(current + plies, 0), total)
+    set({ viewPly: next === total ? null : next, errorMessage: null })
+  },
+
+  jumpToLive: () => {
+    set({ viewPly: null, errorMessage: null })
+  },
+
+  copyRecord: async (format) => {
+    const state = get()
+    if (state.game.moves.length === 0) {
+      set({ errorMessage: '还没有落子，没有可导出的棋谱。' })
+      return
+    }
+
+    const record = exportRecord(state.game)
+    const payload = format === 'sgf' ? record.sgf : record.text
+    try {
+      await navigator.clipboard.writeText(payload)
+      set({
+        parisText: format === 'sgf'
+          ? 'SGF 棋谱已经复制到剪贴板，可以粘进支持的棋谱软件。'
+          : '着法列表已经复制到剪贴板。',
+        errorMessage: null,
+      })
+    } catch {
+      set({ errorMessage: '复制失败，请检查浏览器的剪贴板权限。' })
+    }
+  },
 }))
 
 export function replaceEngineForTests(nextEngine: EnginePort): void {
@@ -637,6 +704,7 @@ export function resetGameStoreForTests(): void {
     isAiThinking: false,
     isHinting: false,
     hintPoint: null,
+    viewPly: null,
     parisText: '挑一张棋盘，我们从第一手开始。',
     errorMessage: null,
   })

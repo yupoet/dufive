@@ -3,14 +3,19 @@ import type {
   BoardSize,
   Color,
   GamePhase,
+  GameState,
   Point,
 } from '../game/types'
 import GomokuBoard from './GomokuBoard'
 import Hud, { type EngineStatusTone } from './Hud'
+import MoveList from './MoveList'
 
 export interface GameViewProps {
   readonly size: BoardSize
   readonly board: Board
+  readonly game: GameState
+  readonly viewPly: number | null
+  readonly hasNewMoves: boolean
   readonly toPlay: Color
   readonly moveNumber: number
   readonly phase: GamePhase
@@ -30,17 +35,25 @@ export interface GameViewProps {
   readonly canRestart?: boolean
   readonly hinting?: boolean
   readonly ruleLabel: string
+  readonly replaying?: boolean
   readonly onPointClick: (point: Point) => void
   readonly onHint: () => void
   readonly onUndo: () => void
   readonly onResign: () => void
   readonly onRestart: () => void
   readonly onExit: () => void
+  readonly onJumpToPly: (ply: number) => void
+  readonly onStep: (plies: number) => void
+  readonly onJumpToLive: () => void
+  readonly onCopyRecord: (format: 'sgf' | 'text') => void
 }
 
 export function GameView({
   size,
   board,
+  game,
+  viewPly,
+  hasNewMoves,
   toPlay,
   moveNumber,
   phase,
@@ -60,12 +73,17 @@ export function GameView({
   canRestart = true,
   hinting = false,
   ruleLabel,
+  replaying = false,
   onPointClick,
   onHint,
   onUndo,
   onResign,
   onRestart,
   onExit,
+  onJumpToPly,
+  onStep,
+  onJumpToLive,
+  onCopyRecord,
 }: GameViewProps) {
   return (
     <main className="game-view">
@@ -96,6 +114,12 @@ export function GameView({
             disabled={boardDisabled || phase === 'finished'}
             onPointClick={onPointClick}
           />
+          {replaying && (
+            <p className="board-mode-banner" role="status">
+              <span aria-hidden="true">↺</span>
+              回放中 · 点击棋盘或「最新」返回当前局面
+            </p>
+          )}
           {errorMessage && (
             <p className="game-error" role="alert">{errorMessage}</p>
           )}
@@ -119,6 +143,16 @@ export function GameView({
             onResign={onResign}
             onRestart={onRestart}
             onExit={onExit}
+          />
+
+          <MoveList
+            game={game}
+            viewPly={viewPly}
+            hasNewMoves={hasNewMoves}
+            onJumpToPly={onJumpToPly}
+            onStep={onStep}
+            onJumpToLive={onJumpToLive}
+            onCopy={onCopyRecord}
           />
 
           {phase === 'finished' && resultText && (

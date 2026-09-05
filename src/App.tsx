@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { forbiddenIndexes } from './game/forbidden'
+import { boardAtPly, moveAtPly } from './game/record'
 import { useGameStore } from './state/gameStore'
 import type { EngineKind } from './engine'
 import {
@@ -62,8 +63,13 @@ export default function App() {
   const isAiThinking = useGameStore((state) => state.isAiThinking)
   const isHinting = useGameStore((state) => state.isHinting)
   const hintPoint = useGameStore((state) => state.hintPoint)
+  const viewPly = useGameStore((state) => state.viewPly)
   const parisText = useGameStore((state) => state.parisText)
   const errorMessage = useGameStore((state) => state.errorMessage)
+  const setViewPly = useGameStore((state) => state.setViewPly)
+  const stepByPlies = useGameStore((state) => state.stepByPlies)
+  const jumpToLive = useGameStore((state) => state.jumpToLive)
+  const copyRecord = useGameStore((state) => state.copyRecord)
   const setBoardSize = useGameStore((state) => state.setBoardSize)
   const setGameMode = useGameStore((state) => state.setGameMode)
   const setPlayerColor = useGameStore((state) => state.setPlayerColor)
@@ -84,6 +90,18 @@ export default function App() {
       ? forbiddenIndexes(game.board, game.size, game.toPlay)
       : []
   ), [game.board, game.size, game.toPlay, ruleSet])
+
+  const replaying = viewPly !== null
+  const displayBoard = useMemo(
+    () => (replaying ? boardAtPly(game, viewPly) : game.board),
+    [game, replaying, viewPly],
+  )
+  const replayMove = replaying ? moveAtPly(game, viewPly) : null
+  const displayLastMove = replaying
+    ? (replayMove ? replayMove.point : null)
+    : (game.lastMove ? game.lastMove.point : null)
+  const displayWinLine = replaying ? [] : game.winLine
+  const hasNewMoves = replaying && game.moves.length > (viewPly ?? 0)
 
   if (screen === 'menu') {
     return (
@@ -111,7 +129,6 @@ export default function App() {
   const waitingForEngine = !localGame
     && game.phase === 'playing'
     && game.toPlay !== humanColor
-  const lastMove = game.lastMove ? game.lastMove.point : null
 
   const resultText = game.winner === 'draw'
     ? '棋盘下满，和棋。'
@@ -148,14 +165,17 @@ export default function App() {
   return (
     <GameView
       size={game.size}
-      board={game.board}
+      board={displayBoard}
+      game={game}
+      viewPly={viewPly}
+      hasNewMoves={hasNewMoves}
       toPlay={game.toPlay}
       moveNumber={game.moveNumber}
       phase={game.phase}
-      lastMove={lastMove}
+      lastMove={displayLastMove}
       hintPoint={hintPoint}
-      winLine={game.winLine}
-      forbiddenPoints={forbiddenPoints}
+      winLine={displayWinLine}
+      forbiddenPoints={replaying ? [] : forbiddenPoints}
       boardDisabled={isAiThinking || waitingForEngine}
       engineStatus={statusText(engineStatus, engineVersion, localGame, engineChoice)}
       engineStatusTone={statusTone(engineStatus, localGame)}
@@ -168,7 +188,12 @@ export default function App() {
       canRestart
       hinting={isHinting}
       ruleLabel={RULE_LABELS[ruleSet]}
+      replaying={replaying}
       onPointClick={playAt}
+      onJumpToPly={setViewPly}
+      onStep={stepByPlies}
+      onJumpToLive={jumpToLive}
+      onCopyRecord={(format) => void copyRecord(format)}
       onHint={() => void requestHint()}
       onUndo={undoTurn}
       onResign={resignWithConfirmation}

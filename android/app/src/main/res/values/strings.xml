@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">嘟嘟五子棋</string>
+    <string name="title_activity_main">嘟嘟五子棋</string>
+    <string name="package_name">com.yupoet.dufive</string>
+    <string name="custom_url_scheme">com.yupoet.dufive</string>
+</resources>
