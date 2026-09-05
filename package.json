@@ -7,10 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test": "vitest run",
-    "lint": "oxlint --ignore-pattern 'public/engine/rapfi/rapfi*.js'",
+    "lint": "oxlint --ignore-pattern '**/engine/rapfi/rapfi*.js'",
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.mjs",
-    "build:android": "npm run build && npx cap sync android && cd android && ANDROID_HOME=/data/android-sdk GRADLE_USER_HOME=${GRADLE_USER_HOME:-/tmp/dufive-gradle} ./gradlew assembleDebug --no-daemon && cp app/build/outputs/apk/debug/app-debug.apk ../dist/dufive.apk",
+    "build:android": "npm run build && npx cap sync android && cp apk-assets/engine/rapfi/rapfi-nnue.* android/app/src/main/assets/public/engine/rapfi/ && cd android && ANDROID_HOME=/data/android-sdk GRADLE_USER_HOME=${GRADLE_USER_HOME:-/tmp/dufive-gradle} ./gradlew assembleDebug --no-daemon && cp app/build/outputs/apk/debug/app-debug.apk ../dist/dufive.apk",
     "deploy:pages": "wrangler pages deploy dist --project-name ${CF_PAGES_PROJECT:-dufive} --branch main"
   },
   "dependencies": {

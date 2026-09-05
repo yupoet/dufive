@@ -73,6 +73,9 @@ export interface DufiveState extends StoredPreferences {
   stats: GameStats
   /** Guards against recording the same finished game twice. */
   statsRecorded: boolean
+  /** Probed on the menu: the NNUE payload is APK-only on the web, because
+   * Cloudflare Pages caps a single file at 25 MiB. */
+  nnueAvailable: boolean
   parisText: string
   errorMessage: string | null
   setBoardSize: (size: BoardSize) => void
@@ -82,6 +85,7 @@ export interface DufiveState extends StoredPreferences {
   setEngineChoice: (choice: EngineChoice) => void
   setRuleSet: (ruleSet: RuleSet) => void
   setSoundEnabled: (enabled: boolean) => void
+  probeNnue: () => Promise<void>
   startGame: () => void
   installEngine: (choice: EngineChoice) => Promise<void>
   exitToMenu: () => void
@@ -321,6 +325,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
   viewPly: null,
   stats: loadStats(),
   statsRecorded: false,
+  nnueAvailable: false,
   parisText: '挑一张棋盘，我们从第一手开始。',
   errorMessage: null,
 
@@ -399,7 +404,10 @@ export const useGameStore = create<DufiveState>((set, get) => ({
     })
 
     if (state.gameMode === 'human-vs-engine') {
-      void get().installEngine(state.engineChoice)
+      const choice = state.engineChoice === 'rapfi-nnue' && !state.nnueAvailable
+        ? 'rapfi'
+        : state.engineChoice
+      void get().installEngine(choice)
     }
   },
 
@@ -741,6 +749,18 @@ export const useGameStore = create<DufiveState>((set, get) => ({
     clearStatsStorage()
     set({ stats: EMPTY_STATS })
   },
+
+  /** Hides the strongest engine where its ~40 MB payload cannot be served. */
+  probeNnue: async () => {
+    try {
+      const response = await fetch('engine/rapfi/rapfi-nnue.data', {
+        method: 'HEAD',
+      })
+      set({ nnueAvailable: response.ok })
+    } catch {
+      set({ nnueAvailable: false })
+    }
+  },
 }))
 
 export function replaceEngineForTests(nextEngine: EnginePort): void {
@@ -771,6 +791,7 @@ export function resetGameStoreForTests(): void {
     // Re-read so a cleared localStorage starts every test from zero.
     stats: loadStats(),
     statsRecorded: false,
+    nnueAvailable: false,
     parisText: '挑一张棋盘，我们从第一手开始。',
     errorMessage: null,
   })

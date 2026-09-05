@@ -15,7 +15,9 @@ Two engines implement the same `EnginePort` contract (`src/engine/port.ts`):
   search if the worker cannot start.
 - `src/engine/rapfi/RapfiEngine.ts` — the GPL-3.0 Rapfi WebAssembly engine,
   imported lazily by `src/engine/createEngine.ts` so the 1.3 MB module stays
-  out of the app bundle.
+  out of the app bundle. An NNUE variant (~40 MB, in `apk-assets/`) ships
+  only in the APK: Cloudflare Pages caps files at 25 MiB, so the web app
+  probes for it and hides the option. Never move it into `public/`.
 
 ## Commands
 

@@ -61,8 +61,12 @@ npm run build:android
 ### Rapfi
 
 `public/engine/rapfi/` 下是 Rapfi 0.43.02 的 Emscripten 构建（wasm 1.2 MB +
-权重 79 KB）。它跑在独立的 classic worker 里，通过 Piskvork 协议通信。完整的
+经典权重 79 KB）。它跑在独立的 classic worker 里，通过 Piskvork 协议通信。完整的
 克隆地址、提交号、编译参数和校验和见 `public/engine/rapfi/SOURCE.md`。
+
+还有第二个构建 **Rapfi NNUE（超最强档）**：mix9svq 权重约 40 MB，棋力最强。
+Cloudflare Pages 单文件上限 25 MiB，所以它**只随 APK 分发**（`apk-assets/`，
+打包时注入），Web 端会探测并隐藏该选项。
 
 引擎选择 “Rapfi 引擎” 时才会按需下载该模块，不会进入主包。若 Rapfi 运行出错，
 对局会自动降级到内置引擎，棋局不会卡住。

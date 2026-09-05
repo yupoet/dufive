@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { forbiddenIndexes } from './game/forbidden'
 import { boardAtPly, moveAtPly } from './game/record'
 import { useGameStore } from './state/gameStore'
@@ -85,6 +85,8 @@ export default function App() {
   const setRuleSet = useGameStore((state) => state.setRuleSet)
   const soundEnabled = useGameStore((state) => state.soundEnabled)
   const setSoundEnabled = useGameStore((state) => state.setSoundEnabled)
+  const nnueAvailable = useGameStore((state) => state.nnueAvailable)
+  const probeNnue = useGameStore((state) => state.probeNnue)
   const stats = useGameStore((state) => state.stats)
   const resetStats = useGameStore((state) => state.resetStats)
   const startGame = useGameStore((state) => state.startGame)
@@ -114,6 +116,10 @@ export default function App() {
   const displayWinLine = replaying ? [] : game.winLine
   const hasNewMoves = replaying && game.moves.length > (viewPly ?? 0)
 
+  useEffect(() => {
+    if (screen === 'menu') void probeNnue()
+  }, [screen, probeNnue])
+
   if (screen === 'menu') {
     return (
       <>
@@ -125,6 +131,7 @@ export default function App() {
         engineChoice={engineChoice}
         ruleSet={ruleSet}
         soundEnabled={soundEnabled}
+        nnueAvailable={nnueAvailable}
         onSoundEnabledChange={setSoundEnabled}
         engineReady
         engineLabel={ENGINE_LABELS[engineChoice]}

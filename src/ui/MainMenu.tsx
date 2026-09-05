@@ -25,6 +25,7 @@ export interface MainMenuProps {
   readonly engineChoice: EngineChoice
   readonly ruleSet: RuleSet
   readonly soundEnabled?: boolean
+  readonly nnueAvailable?: boolean
   readonly engineReady?: boolean
   readonly engineLabel?: string
   readonly starting?: boolean
@@ -83,6 +84,7 @@ export function MainMenu({
   engineChoice,
   ruleSet,
   soundEnabled = true,
+  nnueAvailable = false,
   engineReady = true,
   engineLabel = '本地离线引擎',
   starting = false,
@@ -184,7 +186,9 @@ export function MainMenu({
               <small>都是本机计算，越强越能等</small>
             </legend>
             <div className="engine-options">
-              {ENGINE_CHOICES.map((option) => (
+              {ENGINE_CHOICES
+                .filter((option) => option.value !== 'rapfi-nnue' || nnueAvailable)
+                .map((option) => (
                 <button
                   className="choice-card choice-card--mode"
                   type="button"
@@ -193,7 +197,7 @@ export function MainMenu({
                   onClick={() => onEngineChoiceChange(option.value)}
                 >
                   <span className="choice-icon" aria-hidden="true">
-                    {option.value === 'rapfi' ? '⚙' : '◍'}
+                    {option.value === 'built-in' ? '◍' : '⚙'}
                   </span>
                   <span>
                     <strong>{option.label}</strong>

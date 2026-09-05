@@ -1,4 +1,5 @@
-import { mkdir } from 'node:fs/promises'
+import { cp, mkdir } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const BASE_URL = process.env.E2E_URL ?? 'http://localhost:4173/'
@@ -6,6 +7,18 @@ const SHOT_DIR = process.env.E2E_SHOTS ?? '/tmp/dufive-shots'
 const hostResolverRules = process.env.E2E_HOST_RESOLVER_RULES
 
 await mkdir(SHOT_DIR, { recursive: true })
+
+// The NNUE payload lives in apk-assets/ and is only deployed inside the APK
+// (Cloudflare Pages caps a single file at 25 MiB). Stage it into dist/ so the
+// local smoke test can still exercise the strongest engine; vite preview
+// serves dist/ straight from disk, so the timing does not matter.
+for (const file of ['rapfi-nnue.js', 'rapfi-nnue.wasm', 'rapfi-nnue.data']) {
+  const source = 'apk-assets/engine/rapfi/' + file
+  const target = 'dist/engine/rapfi/' + file
+  if (existsSync(source) && !existsSync(target)) {
+    await cp(source, target)
+  }
+}
 
 const browser = await chromium.launch({
   args: hostResolverRules
@@ -27,7 +40,11 @@ await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], {
 const errors = []
 page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`))
 page.on('console', (message) => {
-  if (message.type() === 'error') errors.push(`console: ${message.text()}`)
+  if (message.type() !== 'error') return
+  // Going offline mid-test makes Chromium log resource failures; that is
+  // exactly what the offline section exercises.
+  if (message.text().includes('ERR_INTERNET_DISCONNECTED')) return
+  errors.push(`console: ${message.text()}`)
 })
 
 function check(condition, message) {

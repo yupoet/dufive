@@ -4,8 +4,14 @@ The adjacent `rapfi.js`, `rapfi.wasm`, and `rapfi.data` files are an
 Emscripten build of [Rapfi](https://github.com/dhbloo/rapfi), a
 Gomoku/Renju engine implementing the Piskvork (Gomocup) protocol. A second
 build, `rapfi-nnue.*`, differs only in the preloaded weights: it carries the
-mix9svq NNUE networks (~40 MB) for the strongest play, and is fetched on
-demand rather than precached.
+mix9svq NNUE networks (~40 MB) for the strongest play.
+
+Cloudflare Pages caps a single file at 25 MiB, so the NNUE artifacts are
+**not deployed to the web**. They live in `apk-assets/engine/rapfi/` and
+`npm run build:android` injects them into the Android assets after
+`cap sync`; the web app probes for them and hides the option when absent.
+The local smoke test stages them into `dist/` itself so the engine stays
+covered.
 
 - Upstream: <https://github.com/dhbloo/rapfi>
 - Cloned commit: `3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7` (2026-07-23)
