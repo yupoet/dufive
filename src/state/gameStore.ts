@@ -756,7 +756,12 @@ export const useGameStore = create<DufiveState>((set, get) => ({
       const response = await fetch('engine/rapfi/rapfi-nnue.data', {
         method: 'HEAD',
       })
-      set({ nnueAvailable: response.ok })
+      // A missing asset is answered by the SPA fallback: 200 with index.html.
+      // Only a real payload counts.
+      const contentType = response.headers.get('content-type') ?? ''
+      set({
+        nnueAvailable: response.ok && !contentType.includes('text/html'),
+      })
     } catch {
       set({ nnueAvailable: false })
     }
