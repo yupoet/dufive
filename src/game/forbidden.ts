@@ -55,18 +55,22 @@ function shapeKey(indexes: readonly number[]): string {
   return [...indexes].sort((first, second) => first - second).join(',')
 }
 
-/** Length of the run that `color` would make by playing `cell`. */
+/** Length of the run that `color` would make by playing `cell`. The board is
+ * mutated and restored in place — this runs inside the hot forbidden-point
+ * scan, where an array copy per probe dominated the cost. */
 function runLengthAfter(
-  board: readonly (string | null)[],
+  board: (string | null)[],
   size: BoardSize,
   cell: number,
   color: Color,
   dx: number,
   dy: number,
 ): number {
-  const next = [...board]
-  next[cell] = color
-  return runThrough(next, size, cell, { dx, dy }).length
+  const previous = board[cell]
+  board[cell] = color
+  const length = runThrough(board, size, cell, { dx, dy }).length
+  board[cell] = previous
+  return length
 }
 
 /**
@@ -75,7 +79,7 @@ function runLengthAfter(
  * more.
  */
 function directionFours(
-  board: readonly (string | null)[],
+  board: (string | null)[],
   size: BoardSize,
   index: number,
   color: Color,
@@ -87,9 +91,10 @@ function directionFours(
   for (const candidate of offsetsInDirection(size, index, dx, dy)) {
     if (board[candidate] !== null) continue
 
-    const next = [...board]
-    next[candidate] = color
-    const run = runThrough(next, size, candidate, { dx, dy })
+    // Mutate and restore instead of copying the board per probe.
+    board[candidate] = color
+    const run = runThrough(board, size, candidate, { dx, dy })
+    board[candidate] = null
     if (run.length !== 5 || !run.includes(index)) continue
 
     keys.add(shapeKey(run.filter((cell) => cell !== candidate)))
@@ -104,7 +109,7 @@ function directionFours(
  * because completing towards the stray stone yields an overline.
  */
 function isTrueOpenFour(
-  board: readonly (string | null)[],
+  board: (string | null)[],
   size: BoardSize,
   run: readonly number[],
   color: Color,
@@ -130,7 +135,7 @@ function isTrueOpenFour(
  * four are excluded.
  */
 function directionOpenThrees(
-  board: readonly (string | null)[],
+  board: (string | null)[],
   size: BoardSize,
   index: number,
   color: Color,
@@ -142,13 +147,17 @@ function directionOpenThrees(
   for (const candidate of offsetsInDirection(size, index, dx, dy)) {
     if (board[candidate] !== null) continue
 
-    const next = [...board]
-    next[candidate] = color
-    const run = runThrough(next, size, candidate, { dx, dy })
-    if (run.length !== 4 || !run.includes(index)) continue
-    if (!isTrueOpenFour(next, size, run, color, dx, dy)) continue
-
-    keys.add(shapeKey(run.filter((cell) => cell !== candidate)))
+    board[candidate] = color
+    const run = runThrough(board, size, candidate, { dx, dy })
+    // The probe stone must stay in place while the open-four is judged.
+    if (
+      run.length === 4
+      && run.includes(index)
+      && isTrueOpenFour(board, size, run, color, dx, dy)
+    ) {
+      keys.add(shapeKey(run.filter((cell) => cell !== candidate)))
+    }
+    board[candidate] = null
   }
 
   return keys
@@ -162,6 +171,31 @@ function directionOpenThrees(
  * direction it appears in: every direction is scanned for an exact five before
  * an overline in another direction is reported.
  */
+/** The forbidden-move verdict for a black stone already placed at `index`. */
+function forbiddenOnPlacedBoard(
+  next: (string | null)[],
+  size: BoardSize,
+  index: number,
+): ForbiddenKind | null {
+  let fours = 0
+  let openThrees = 0
+  let overline = false
+
+  for (const { dx, dy } of DIRECTIONS) {
+    const run = runThrough(next, size, index, { dx, dy })
+    if (run.length === 5) return null
+    if (run.length >= 6) overline = true
+
+    fours += directionFours(next, size, index, 'black', dx, dy).size
+    openThrees += directionOpenThrees(next, size, index, 'black', dx, dy).size
+  }
+
+  if (fours >= 2) return 'double-four'
+  if (openThrees >= 2) return 'double-three'
+  if (overline) return 'overline'
+  return null
+}
+
 export function forbiddenReason(
   board: Board,
   size: BoardSize,
@@ -174,25 +208,8 @@ export function forbiddenReason(
   if (board[index] !== null) return null
 
   const next: (string | null)[] = [...board]
-  next[index] = color
-
-  let fours = 0
-  let openThrees = 0
-  let overline = false
-
-  for (const { dx, dy } of DIRECTIONS) {
-    const run = runThrough(next, size, index, { dx, dy })
-    if (run.length === 5) return null
-    if (run.length >= 6) overline = true
-
-    fours += directionFours(next, size, index, color, dx, dy).size
-    openThrees += directionOpenThrees(next, size, index, color, dx, dy).size
-  }
-
-  if (fours >= 2) return 'double-four'
-  if (openThrees >= 2) return 'double-three'
-  if (overline) return 'overline'
-  return null
+  next[index] = 'black'
+  return forbiddenOnPlacedBoard(next, size, index)
 }
 
 export function isForbidden(
@@ -204,7 +221,10 @@ export function isForbidden(
   return forbiddenReason(board, size, point, color) !== null
 }
 
-/** Every empty point that black may not play under renju rules. */
+/**
+ * Every empty point that black may not play under renju rules. One scratch
+ * board is reused for the whole scan instead of copying per point.
+ */
 export function forbiddenIndexes(
   board: Board,
   size: BoardSize,
@@ -212,14 +232,13 @@ export function forbiddenIndexes(
 ): number[] {
   if (color !== 'black') return []
 
+  const next: (string | null)[] = [...board]
   const indexes: number[] = []
   for (let index = 0; index < board.length; index += 1) {
     if (board[index] !== null) continue
-    const point: Point = {
-      x: index % size,
-      y: Math.floor(index / size),
-    }
-    if (forbiddenReason(board, size, point, color)) indexes.push(index)
+    next[index] = 'black'
+    if (forbiddenOnPlacedBoard(next, size, index)) indexes.push(index)
+    next[index] = null
   }
 
   return indexes

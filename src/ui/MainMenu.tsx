@@ -24,6 +24,7 @@ export interface MainMenuProps {
   readonly engineStrength: EngineStrength
   readonly engineChoice: EngineChoice
   readonly ruleSet: RuleSet
+  readonly soundEnabled?: boolean
   readonly engineReady?: boolean
   readonly engineLabel?: string
   readonly starting?: boolean
@@ -33,6 +34,7 @@ export interface MainMenuProps {
   readonly onEngineStrengthChange: (strength: EngineStrength) => void
   readonly onEngineChoiceChange: (choice: EngineChoice) => void
   readonly onRuleSetChange: (ruleSet: RuleSet) => void
+  readonly onSoundEnabledChange: (enabled: boolean) => void
   readonly onStart: () => void
   readonly stats?: GameStats
   readonly onResetStats?: () => void
@@ -80,6 +82,7 @@ export function MainMenu({
   engineStrength,
   engineChoice,
   ruleSet,
+  soundEnabled = true,
   engineReady = true,
   engineLabel = '本地离线引擎',
   starting = false,
@@ -89,6 +92,7 @@ export function MainMenu({
   onEngineStrengthChange,
   onEngineChoiceChange,
   onRuleSetChange,
+  onSoundEnabledChange,
   onStart,
   stats,
   onResetStats = () => {},
@@ -259,6 +263,39 @@ export function MainMenu({
                   </span>
                 </button>
               ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="menu-fieldset">
+            <legend>
+              <span>落子音效</span>
+              <small>轻微的落子声</small>
+            </legend>
+            <div className="mode-options">
+              <button
+                className="choice-card choice-card--mode"
+                type="button"
+                aria-pressed={soundEnabled}
+                onClick={() => onSoundEnabledChange(true)}
+              >
+                <span className="choice-icon" aria-hidden="true">♪</span>
+                <span>
+                  <strong>开启</strong>
+                  <small>每手都有反馈</small>
+                </span>
+              </button>
+              <button
+                className="choice-card choice-card--mode"
+                type="button"
+                aria-pressed={!soundEnabled}
+                onClick={() => onSoundEnabledChange(false)}
+              >
+                <span className="choice-icon" aria-hidden="true">✕</span>
+                <span>
+                  <strong>关闭</strong>
+                  <small>安静对弈</small>
+                </span>
+              </button>
             </div>
           </fieldset>
 

@@ -6,6 +6,7 @@ import type { EngineKind } from './engine'
 import {
   GameView,
   MainMenu,
+  UpdateToast,
   type EngineStatusTone,
 } from './ui'
 
@@ -82,6 +83,8 @@ export default function App() {
   const setEngineStrength = useGameStore((state) => state.setEngineStrength)
   const setEngineChoice = useGameStore((state) => state.setEngineChoice)
   const setRuleSet = useGameStore((state) => state.setRuleSet)
+  const soundEnabled = useGameStore((state) => state.soundEnabled)
+  const setSoundEnabled = useGameStore((state) => state.setSoundEnabled)
   const stats = useGameStore((state) => state.stats)
   const resetStats = useGameStore((state) => state.resetStats)
   const startGame = useGameStore((state) => state.startGame)
@@ -113,6 +116,7 @@ export default function App() {
 
   if (screen === 'menu') {
     return (
+      <>
       <MainMenu
         boardSize={boardSize}
         gameMode={gameMode}
@@ -120,6 +124,8 @@ export default function App() {
         engineStrength={engineStrength}
         engineChoice={engineChoice}
         ruleSet={ruleSet}
+        soundEnabled={soundEnabled}
+        onSoundEnabledChange={setSoundEnabled}
         engineReady
         engineLabel={ENGINE_LABELS[engineChoice]}
         onBoardSizeChange={setBoardSize}
@@ -132,6 +138,8 @@ export default function App() {
         stats={stats}
         onResetStats={resetStats}
       />
+      <UpdateToast />
+      </>
     )
   }
 
@@ -173,6 +181,7 @@ export default function App() {
   }
 
   return (
+    <>
     <GameView
       size={game.size}
       board={displayBoard}
@@ -210,5 +219,7 @@ export default function App() {
       onRestart={restartWithConfirmation}
       onExit={leaveGame}
     />
+    <UpdateToast />
+    </>
   )
 }

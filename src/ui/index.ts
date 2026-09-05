@@ -9,6 +9,7 @@ export type { MoveListProps } from './MoveList'
 export { default as MainMenu } from './MainMenu'
 export { default as StatsCard } from './StatsCard'
 export type { StatsCardProps } from './StatsCard'
+export { default as UpdateToast, notifyUpdateReady } from './UpdateToast'
 export type {
   EngineChoice,
   GameMode,

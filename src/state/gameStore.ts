@@ -25,6 +25,7 @@ import {
   type EnginePort,
   type EngineStrength,
 } from '../engine'
+import { playStoneSound } from '../audio'
 import { createEngine } from '../engine/createEngine'
 import { ENGINE_STRENGTH_PROFILES } from '../engine/strength'
 import {
@@ -55,6 +56,7 @@ interface StoredPreferences {
   engineStrength: EngineStrength
   engineChoice: EngineChoice
   ruleSet: RuleSet
+  soundEnabled: boolean
 }
 
 export interface DufiveState extends StoredPreferences {
@@ -79,6 +81,7 @@ export interface DufiveState extends StoredPreferences {
   setEngineStrength: (strength: EngineStrength) => void
   setEngineChoice: (choice: EngineChoice) => void
   setRuleSet: (ruleSet: RuleSet) => void
+  setSoundEnabled: (enabled: boolean) => void
   startGame: () => void
   installEngine: (choice: EngineChoice) => Promise<void>
   exitToMenu: () => void
@@ -103,6 +106,7 @@ const DEFAULT_PREFERENCES: StoredPreferences = {
   engineStrength: 'high',
   engineChoice: 'built-in',
   ruleSet: 'free',
+  soundEnabled: true,
 }
 
 let engine: EnginePort = new GomokuEngine()
@@ -127,6 +131,7 @@ function loadPreferences(): StoredPreferences {
       engineStrength?: unknown
       engineChoice?: unknown
       ruleSet?: unknown
+      soundEnabled?: unknown
     }
     return {
       boardSize: stored.boardSize === 13
@@ -151,6 +156,7 @@ function loadPreferences(): StoredPreferences {
         ? stored.engineChoice
         : 'built-in',
       ruleSet: stored.ruleSet === 'renju' ? 'renju' : 'free',
+      soundEnabled: stored.soundEnabled !== false,
     }
   } catch {
     return DEFAULT_PREFERENCES
@@ -288,6 +294,7 @@ function commitResult(
     parisText: successMessage(result.state),
   })
   if (result.state.phase === 'finished') recordStatsOnce(useGameStore.getState())
+  if (useGameStore.getState().soundEnabled) playStoneSound()
   return true
 }
 
@@ -318,39 +325,49 @@ export const useGameStore = create<DufiveState>((set, get) => ({
   errorMessage: null,
 
   setBoardSize: (boardSize) => {
-    const { gameMode, playerColor, engineStrength, engineChoice, ruleSet } = get()
+    const { gameMode, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled } = get()
     set({ boardSize })
-    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet })
+    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled })
   },
 
   setGameMode: (gameMode) => {
-    const { boardSize, playerColor, engineStrength, engineChoice, ruleSet } = get()
+    const { boardSize, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled } = get()
     set({ gameMode })
-    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet })
+    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled })
   },
 
   setPlayerColor: (playerColor) => {
-    const { boardSize, gameMode, engineStrength, engineChoice, ruleSet } = get()
+    const { boardSize, gameMode, engineStrength, engineChoice, ruleSet, soundEnabled } = get()
     set({ playerColor })
-    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet })
+    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled })
   },
 
   setEngineStrength: (engineStrength) => {
-    const { boardSize, gameMode, playerColor, engineChoice, ruleSet } = get()
+    const { boardSize, gameMode, playerColor, engineChoice, ruleSet, soundEnabled } = get()
     set({ engineStrength })
-    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet })
+    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled })
   },
 
   setEngineChoice: (engineChoice) => {
-    const { boardSize, gameMode, playerColor, engineStrength, ruleSet } = get()
+    const { boardSize, gameMode, playerColor, engineStrength, ruleSet, soundEnabled } = get()
     set({ engineChoice })
-    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet })
+    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled })
   },
 
   setRuleSet: (ruleSet) => {
-    const { boardSize, gameMode, playerColor, engineStrength, engineChoice } = get()
+    const { boardSize, gameMode, playerColor, engineStrength, engineChoice, soundEnabled } = get()
     set({ ruleSet })
-    persist({ boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet })
+    persist({
+      boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled,
+    })
+  },
+
+  setSoundEnabled: (soundEnabled) => {
+    const { boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet } = get()
+    set({ soundEnabled })
+    persist({
+      boardSize, gameMode, playerColor, engineStrength, engineChoice, ruleSet, soundEnabled,
+    })
   },
 
   startGame: () => {
@@ -657,6 +674,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
             : '帕里斯已经落子。轮到你了。',
       })
       if (next.phase === 'finished') recordStatsOnce(get())
+      if (get().soundEnabled) playStoneSound()
     } catch (error) {
       if (generation !== operationGeneration || isEngineCancellation(error)) return
       set({
