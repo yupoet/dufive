@@ -17,6 +17,7 @@ const RULE_LABELS = {
 const ENGINE_LABELS: Record<EngineKind, string> = {
   'built-in': '内置引擎 · 本地离线',
   rapfi: 'Rapfi · 本地离线',
+  'rapfi-nnue': 'Rapfi NNUE · 本地离线',
 }
 
 function statusText(
@@ -26,12 +27,17 @@ function statusText(
   choice: EngineKind,
 ): string {
   if (localGame) return '本地双人'
-  if (status === 'loading') return choice === 'rapfi' ? 'Rapfi 加载中' : '引擎加载中'
+  if (status === 'loading') {
+    if (choice === 'rapfi-nnue') return 'Rapfi NNUE 加载中（约 40 MB）'
+    return choice === 'rapfi' ? 'Rapfi 加载中' : '引擎加载中'
+  }
   if (status === 'thinking') return '本机思考中'
   if (status === 'fallback') return '离线兼容模式'
   if (status === 'error') return '引擎待重试'
   if (status === 'ready') {
-    return version ? `${choice === 'rapfi' ? 'Rapfi' : '帕里斯'} ${version}` : '引擎就绪'
+    return version
+      ? `${choice === 'built-in' ? '帕里斯' : 'Rapfi'} ${version}`
+      : '引擎就绪'
   }
   return ENGINE_LABELS[choice]
 }

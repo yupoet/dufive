@@ -94,7 +94,18 @@ describe('RapfiEngine boot', () => {
     const engine = makeEngine([worker])
 
     const initPromise = engine.init()
-    expect(worker.posted).toEqual([{ type: 'init' }])
+    expect(worker.posted).toEqual([{ type: 'init', variant: 'classical' }])
+
+    worker.receive({ type: 'ready', version: VERSION })
+    await expect(initPromise).resolves.toBe(VERSION)
+  })
+
+  it('asks the worker for the NNUE build when configured as the strongest engine', async () => {
+    const worker = new FakeWorker()
+    const engine = makeEngine([worker], { variant: 'nnue' })
+
+    const initPromise = engine.init()
+    expect(worker.posted).toEqual([{ type: 'init', variant: 'nnue' }])
 
     worker.receive({ type: 'ready', version: VERSION })
     await expect(initPromise).resolves.toBe(VERSION)

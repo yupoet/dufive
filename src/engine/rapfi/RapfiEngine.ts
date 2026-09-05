@@ -11,6 +11,7 @@ import {
   buildMoveCommands,
   coordToIndex,
   parseMoveLine,
+  type RapfiVariant,
   type RapfiWorkerRequest,
   type RapfiWorkerResponse,
 } from './protocol'
@@ -20,6 +21,8 @@ export interface RapfiEngineOptions {
   readonly bootTimeoutMs?: number
   readonly searchTimeoutMs?: number
   readonly onLog?: (message: string) => void
+  /** `nnue` loads the mix9svq build: ~30 MB fetched on demand. */
+  readonly variant?: RapfiVariant
 }
 
 interface WorkerState {
@@ -48,6 +51,8 @@ interface QueueJob {
 }
 
 const DEFAULT_BOOT_TIMEOUT_MS = 30_000
+/** The NNUE build has to fetch ~30 MB of weights before it can boot. */
+const NNUE_BOOT_TIMEOUT_MS = 180_000
 const DEFAULT_SEARCH_TIMEOUT_MS = 30_000
 
 /**
@@ -101,6 +106,7 @@ export class RapfiEngine implements EnginePort {
   private readonly bootTimeoutMs: number
   private readonly searchTimeoutMs: number
   private readonly onLog?: (message: string) => void
+  private readonly variant: RapfiVariant
 
   private workerState: WorkerState | null = null
   private pending = new Map<number, PendingRequest>()
@@ -112,7 +118,9 @@ export class RapfiEngine implements EnginePort {
 
   constructor(options: RapfiEngineOptions = {}) {
     this.workerFactory = options.workerFactory ?? defaultWorkerFactory
-    this.bootTimeoutMs = options.bootTimeoutMs ?? DEFAULT_BOOT_TIMEOUT_MS
+    this.variant = options.variant ?? 'classical'
+    this.bootTimeoutMs = options.bootTimeoutMs
+      ?? (this.variant === 'nnue' ? NNUE_BOOT_TIMEOUT_MS : DEFAULT_BOOT_TIMEOUT_MS)
     this.searchTimeoutMs = options.searchTimeoutMs ?? DEFAULT_SEARCH_TIMEOUT_MS
     this.onLog = options.onLog
   }
@@ -333,7 +341,10 @@ export class RapfiEngine implements EnginePort {
 
     this.workerState = state
 
-    const initMessage: RapfiWorkerRequest = { type: 'init' }
+    const initMessage: RapfiWorkerRequest = {
+      type: 'init',
+      variant: this.variant,
+    }
     worker.postMessage(initMessage)
     return state.ready
   }

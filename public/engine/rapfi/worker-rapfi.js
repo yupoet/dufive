@@ -22,15 +22,18 @@ var modulePromise = null
 var module = null
 var stdoutLines = []
 var exited = false
+var variant = 'classical'
 
 function post(message) {
   self.postMessage(message)
 }
 
 // The Emscripten build emits rapfi-single-simd128.* names; the shipped
-// artifacts are renamed to rapfi.*, so every side file is remapped here.
+// artifacts are renamed to rapfi.* (classical) or rapfi-nnue.* (mix9svq
+// weights), so every side file is remapped here.
 function locateFile(path) {
-  return new URL(path.replace('rapfi-single-simd128', 'rapfi'), engineRoot).href
+  var prefix = variant === 'nnue' ? 'rapfi-nnue' : 'rapfi'
+  return new URL(path.replace('rapfi-single-simd128', prefix), engineRoot).href
 }
 
 function recordStdout(line) {
@@ -73,8 +76,9 @@ function loadModule() {
       },
     }
 
+    var scriptName = variant === 'nnue' ? 'rapfi-nnue.js' : 'rapfi.js'
     try {
-      self.importScripts(new URL('rapfi.js', engineRoot).href)
+      self.importScripts(new URL(scriptName, engineRoot).href)
     } catch (error) {
       reject(error)
       return
@@ -118,6 +122,7 @@ self.onmessage = function (event) {
   if (!request || typeof request !== 'object') return
 
   if (request.type === 'init') {
+    if (request.variant === 'nnue') variant = 'nnue'
     if (!modulePromise) boot()
     return
   }

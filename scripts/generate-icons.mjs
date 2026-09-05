@@ -69,7 +69,6 @@ const LINE = [0x5d, 0x3a, 0x17]
 
 function renderIcon(size, boardFraction = 1) {
   const pixels = Buffer.alloc(size * size * 4)
-  const scale = (size / 64) * boardFraction
 
   const put = (x, y, [r, g, b], alpha = 255) => {
     if (x < 0 || y < 0 || x >= size || y >= size) return

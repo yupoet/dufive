@@ -167,6 +167,27 @@ try {
   await page.getByTestId('exit').click()
   await page.getByTestId('main-menu').waitFor()
 
+  // ------------------------------------------------------- Rapfi NNUE
+  await clickButton('挑战帕里斯')
+  await clickButton('Rapfi 超最强')
+  await clickButton('执白').catch(() => {})
+  await page.getByTestId('start-game').click()
+
+  // The NNUE payload is ~40 MB; on a local preview server this is fast, but
+  // the boot budget is generous because a real network is slower.
+  await waitForEngineStone(1, 240_000)
+  const nnueStatus = await page.getByTestId('engine-status').textContent()
+  check(
+    (nnueStatus ?? '').includes('Rapfi'),
+    `Rapfi NNUE 引擎状态异常：${nnueStatus}`,
+  )
+  await page.screenshot({ path: `${SHOT_DIR}/05-rapfi-nnue.png` })
+  console.log(`✅ Rapfi NNUE 加载并落子（${nnueStatus?.trim()}）`)
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByTestId('exit').click()
+  await page.getByTestId('main-menu').waitFor()
+
   // ---------------------------------------------------------- 禁手规则
   await clickButton('双人对弈')
   await clickButton('黑方禁手')

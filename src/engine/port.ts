@@ -23,7 +23,7 @@ export interface EngineDecision {
   readonly moveSource: MoveSource
 }
 
-export type EngineKind = 'built-in' | 'rapfi'
+export type EngineKind = 'built-in' | 'rapfi' | 'rapfi-nnue'
 
 /**
  * Common contract for every dufive engine. Implementations must serialise

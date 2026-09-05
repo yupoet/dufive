@@ -7,12 +7,13 @@ import {
 import {
   ENGINE_STRENGTH_PROFILES,
   ENGINE_STRENGTHS,
+  type EngineKind,
   type EngineStrength,
 } from '../engine'
 
 export type GameMode = 'human-vs-engine' | 'local-two-player'
 export type PlayerColor = Color | 'random'
-export type EngineChoice = 'built-in' | 'rapfi'
+export type EngineChoice = EngineKind
 
 export interface MainMenuProps {
   readonly boardSize: BoardSize
@@ -55,7 +56,8 @@ const ENGINE_CHOICES: readonly {
   readonly detail: string
 }[] = [
   { value: 'built-in', label: '随身棋力', detail: '内置引擎 · 立刻开局' },
-  { value: 'rapfi', label: 'Rapfi 引擎', detail: 'GPL 强引擎 · 需加载' },
+  { value: 'rapfi', label: 'Rapfi 引擎', detail: '经典权重 · 约 1.3 MB' },
+  { value: 'rapfi-nnue', label: 'Rapfi 超最强', detail: 'NNUE 权重 · 约 40 MB' },
 ]
 
 const RULE_OPTIONS: readonly {
@@ -169,9 +171,9 @@ export function MainMenu({
           >
             <legend>
               <span>引擎</span>
-              <small>两种都是纯离线</small>
+              <small>都是本机计算，越强越能等</small>
             </legend>
-            <div className="mode-options">
+            <div className="engine-options">
               {ENGINE_CHOICES.map((option) => (
                 <button
                   className="choice-card choice-card--mode"

@@ -983,3 +983,9 @@ legend small {
   border-color: rgba(243, 237, 226, 0.45);
   color: var(--ink);
 }
+
+.engine-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}

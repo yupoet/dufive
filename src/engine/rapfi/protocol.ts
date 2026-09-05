@@ -125,8 +125,11 @@ export function buildMoveCommands(
   return commands
 }
 
+/** Which Rapfi build to load: classical weights or the mix9svq NNUE. */
+export type RapfiVariant = 'classical' | 'nnue'
+
 export type RapfiWorkerRequest =
-  | { readonly type: 'init' }
+  | { readonly type: 'init'; readonly variant?: RapfiVariant }
   | { readonly type: 'move'; readonly id: number; readonly commands: readonly string[] }
 
 export type RapfiWorkerResponse =

@@ -44,6 +44,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,wasm,md,woff2,data}'],
+        // The NNUE build is 40 MB and only wanted by players who pick the
+        // strongest engine, so it is never precached.
+        globIgnores: ['engine/rapfi/rapfi-nnue.*'],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
       },
     }),

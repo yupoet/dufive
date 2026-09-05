@@ -7,9 +7,9 @@ import type { EngineKind, EnginePort } from './port'
  * player actually picks that engine.
  */
 export async function createEngine(kind: EngineKind): Promise<EnginePort> {
-  if (kind === 'rapfi') {
+  if (kind === 'rapfi' || kind === 'rapfi-nnue') {
     const { RapfiEngine } = await import('./rapfi/RapfiEngine')
-    return new RapfiEngine()
+    return new RapfiEngine({ variant: kind === 'rapfi-nnue' ? 'nnue' : 'classical' })
   }
 
   return new GomokuEngine()

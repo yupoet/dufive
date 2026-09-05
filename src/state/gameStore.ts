@@ -99,6 +99,10 @@ let activeEngineKind: EngineKind = 'built-in'
 let operationGeneration = 0
 let activeAbortController: AbortController | null = null
 
+function isRapfiKind(choice: EngineChoice): boolean {
+  return choice === 'rapfi' || choice === 'rapfi-nnue'
+}
+
 function loadPreferences(): StoredPreferences {
   if (typeof localStorage === 'undefined') return DEFAULT_PREFERENCES
 
@@ -129,7 +133,10 @@ function loadPreferences(): StoredPreferences {
         || stored.engineStrength === 'full'
         ? stored.engineStrength
         : 'high',
-      engineChoice: stored.engineChoice === 'rapfi' ? 'rapfi' : 'built-in',
+      engineChoice: stored.engineChoice === 'rapfi'
+        || stored.engineChoice === 'rapfi-nnue'
+        ? stored.engineChoice
+        : 'built-in',
       ruleSet: stored.ruleSet === 'renju' ? 'renju' : 'free',
     }
   } catch {
@@ -222,7 +229,7 @@ async function runEngineTurn(
     return await engine.generateMove(request)
   } catch (error) {
     if (isEngineCancellation(error)) throw error
-    if (activeEngineKind !== 'rapfi') throw error
+    if (!isRapfiKind(activeEngineKind)) throw error
 
     engine.dispose()
     engine = new GomokuEngine()
@@ -391,7 +398,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
       // Rapfi could not start (unsupported browser, blocked WASM, missing
       // files). Fall back once rather than retrying a 1.3 MB download on
       // every move.
-      if (choice === 'rapfi' && !pinnedEngine) {
+      if (isRapfiKind(choice) && !pinnedEngine) {
         engine.dispose()
         engine = new GomokuEngine()
         activeEngineKind = 'built-in'
