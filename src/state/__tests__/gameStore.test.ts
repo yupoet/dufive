@@ -2,15 +2,16 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { EngineDecision, EnginePort, GenerateMoveInput } from '../../engine'
+import type { Color } from '../../game/types'
 import {
   replaceEngineForTests,
   resetGameStoreForTests,
   useGameStore,
 } from '../gameStore'
+import { EMPTY_STATS } from '../stats'
 
 class ImmediateEngine implements EnginePort {
   generation = 0
-  index = 4 * 15 + 4
   calls: GenerateMoveInput[] = []
 
   async init(): Promise<string> {
@@ -26,10 +27,24 @@ class ImmediateEngine implements EnginePort {
     // Nothing to release in tests.
   }
 
+  /**
+   * Position-based so undo-and-replay behaves: the opening always takes the
+   * centre, later moves fill row 10 and never interfere with row 0.
+   */
+  private pickIndex(board: readonly (Color | null)[]): number {
+    const centre = 4 * 15 + 4
+    if (board[centre] === null) return centre
+    for (let x = 0; x < 15; x += 1) {
+      const index = 10 * 15 + x
+      if (board[index] === null) return index
+    }
+    return board.findIndex((stone) => stone === null)
+  }
+
   async generateMove(input: GenerateMoveInput): Promise<EngineDecision> {
     this.calls.push(input)
     return {
-      index: this.index,
+      index: this.pickIndex(input.board),
       score: 0,
       nodes: 0,
       depth: 1,
@@ -354,5 +369,61 @@ describe('replay navigation', () => {
     } finally {
       delete (navigator as { clipboard?: unknown }).clipboard
     }
+  })
+})
+
+describe('game statistics', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    resetGameStoreForTests()
+    replaceEngineForTests(new ImmediateEngine())
+  })
+
+  it('records an engine game once when it finishes', async () => {
+    useGameStore.getState().startGame()
+    useGameStore.getState().playAt({ x: 0, y: 0 })
+    await flush()
+    useGameStore.getState().playAt({ x: 1, y: 0 })
+    await flush()
+    useGameStore.getState().playAt({ x: 2, y: 0 })
+    await flush()
+    useGameStore.getState().playAt({ x: 3, y: 0 })
+    await flush()
+    await useGameStore.getState().playAt({ x: 4, y: 0 })
+
+    const state = useGameStore.getState()
+    expect(state.game.phase).toBe('finished')
+    expect(state.stats.total).toBe(1)
+    expect(state.stats.wins).toBe(1)
+    expect(state.statsRecorded).toBe(true)
+
+    // Undoing and replaying the finish must not double-count.
+    useGameStore.getState().undoTurn()
+    useGameStore.getState().playAt({ x: 4, y: 0 })
+    expect(useGameStore.getState().stats.total).toBe(1)
+  })
+
+  it('ignores local two-player games', () => {
+    useGameStore.getState().setGameMode('local-two-player')
+    useGameStore.getState().startGame()
+
+    for (const [x, y] of [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [2, 5], [3, 0], [3, 5], [4, 0]]) {
+      useGameStore.getState().playAt({ x, y })
+    }
+
+    expect(useGameStore.getState().game.phase).toBe('finished')
+    expect(useGameStore.getState().stats.total).toBe(0)
+  })
+
+  it('resets the statistics', async () => {
+    useGameStore.getState().startGame()
+    useGameStore.getState().playAt({ x: 0, y: 0 })
+    await flush()
+    useGameStore.getState().resignGame()
+
+    expect(useGameStore.getState().stats.total).toBe(1)
+    useGameStore.getState().resetStats()
+    expect(useGameStore.getState().stats).toEqual(EMPTY_STATS)
+    expect(localStorage.getItem('dufive-stats-v1')).toBeNull()
   })
 })

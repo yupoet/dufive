@@ -140,9 +140,22 @@ try {
   await waitForEngineStone(3)
   console.log('✅ 内置引擎应手')
 
+  // Resign so the statistics card has something to show.
   page.once('dialog', (dialog) => dialog.accept())
+  await page.getByTestId('resign').click()
+  await page.getByText('认输，').first().waitFor()
+  // The game is finished, so leaving it needs no confirmation dialog.
   await page.getByTestId('exit').click()
   await page.getByTestId('main-menu').waitFor()
+  check(
+    (await page.getByTestId('stats-total').textContent()) === '1',
+    '认输后战绩没有记录对局',
+  )
+  check(
+    (await page.getByTestId('stats-losses').textContent()) === '1',
+    '认输没有被记为败局',
+  )
+  console.log('✅ 对局统计记录认输结果')
 
   // ------------------------------------------------------------ Rapfi
   await clickButton('挑战帕里斯')

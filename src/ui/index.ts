@@ -7,6 +7,8 @@ export type { EngineStatusTone, HudProps } from './Hud'
 export { default as MoveList } from './MoveList'
 export type { MoveListProps } from './MoveList'
 export { default as MainMenu } from './MainMenu'
+export { default as StatsCard } from './StatsCard'
+export type { StatsCardProps } from './StatsCard'
 export type {
   EngineChoice,
   GameMode,

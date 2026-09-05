@@ -10,6 +10,8 @@ import {
   type EngineKind,
   type EngineStrength,
 } from '../engine'
+import type { GameStats } from '../state/stats'
+import StatsCard from './StatsCard'
 
 export type GameMode = 'human-vs-engine' | 'local-two-player'
 export type PlayerColor = Color | 'random'
@@ -32,6 +34,8 @@ export interface MainMenuProps {
   readonly onEngineChoiceChange: (choice: EngineChoice) => void
   readonly onRuleSetChange: (ruleSet: RuleSet) => void
   readonly onStart: () => void
+  readonly stats?: GameStats
+  readonly onResetStats?: () => void
 }
 
 const BOARD_DETAILS: Record<BoardSize, string> = {
@@ -86,6 +90,8 @@ export function MainMenu({
   onEngineChoiceChange,
   onRuleSetChange,
   onStart,
+  stats,
+  onResetStats = () => {},
 }: MainMenuProps) {
   return (
     <main className="main-menu" data-testid="main-menu">
@@ -302,6 +308,8 @@ export function MainMenu({
             </button>
           </div>
         </div>
+
+        {stats && <StatsCard stats={stats} onReset={onResetStats} />}
 
         <footer className="menu-footer">
           离线运行 · 无禁手或黑方禁手（长连、双四、双三）

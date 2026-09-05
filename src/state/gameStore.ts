@@ -27,6 +27,15 @@ import {
 } from '../engine'
 import { createEngine } from '../engine/createEngine'
 import { ENGINE_STRENGTH_PROFILES } from '../engine/strength'
+import {
+  EMPTY_STATS,
+  clearStats as clearStatsStorage,
+  loadStats,
+  outcomeFor,
+  recordResult,
+  saveStats,
+  type GameStats,
+} from './stats'
 
 export type GameMode = 'human-vs-engine' | 'local-two-player'
 export type PlayerColor = Color | 'random'
@@ -59,6 +68,9 @@ export interface DufiveState extends StoredPreferences {
   hintPoint: Point | null
   /** Move shown by the replay view; null means the live position. */
   viewPly: number | null
+  stats: GameStats
+  /** Guards against recording the same finished game twice. */
+  statsRecorded: boolean
   parisText: string
   errorMessage: string | null
   setBoardSize: (size: BoardSize) => void
@@ -80,6 +92,7 @@ export interface DufiveState extends StoredPreferences {
   stepByPlies: (plies: number) => void
   jumpToLive: () => void
   copyRecord: (format: 'sgf' | 'text') => Promise<void>
+  resetStats: () => void
 }
 
 const STORAGE_KEY = 'dufive-preferences-v1'
@@ -240,6 +253,21 @@ async function runEngineTurn(
   }
 }
 
+/** Folds a finished engine game into the persistent statistics, once. */
+function recordStatsOnce(state: DufiveState): void {
+  if (state.statsRecorded) return
+  const outcome = outcomeFor(
+    state.game,
+    state.humanColor,
+    state.gameMode === 'human-vs-engine',
+  )
+  if (!outcome) return
+
+  const stats = recordResult(state.stats, outcome)
+  saveStats(stats)
+  useGameStore.setState({ stats, statsRecorded: true })
+}
+
 function commitResult(
   result: GameResult,
   successMessage: (game: GameState) => string,
@@ -259,6 +287,7 @@ function commitResult(
     isHinting: false,
     parisText: successMessage(result.state),
   })
+  if (result.state.phase === 'finished') recordStatsOnce(useGameStore.getState())
   return true
 }
 
@@ -283,6 +312,8 @@ export const useGameStore = create<DufiveState>((set, get) => ({
   isHinting: false,
   hintPoint: null,
   viewPly: null,
+  stats: loadStats(),
+  statsRecorded: false,
   parisText: '挑一张棋盘，我们从第一手开始。',
   errorMessage: null,
 
@@ -341,6 +372,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
       isHinting: false,
       hintPoint: null,
       viewPly: null,
+      statsRecorded: false,
       errorMessage: null,
       parisText: state.gameMode === 'local-two-player'
         ? '黑方先行。两位棋手在同一块棋盘上轮流落子。'
@@ -624,6 +656,7 @@ export const useGameStore = create<DufiveState>((set, get) => ({
             ? '引擎已切换到兼容落子，棋局仍然完全离线。'
             : '帕里斯已经落子。轮到你了。',
       })
+      if (next.phase === 'finished') recordStatsOnce(get())
     } catch (error) {
       if (generation !== operationGeneration || isEngineCancellation(error)) return
       set({
@@ -685,6 +718,11 @@ export const useGameStore = create<DufiveState>((set, get) => ({
       set({ errorMessage: '复制失败，请检查浏览器的剪贴板权限。' })
     }
   },
+
+  resetStats: () => {
+    clearStatsStorage()
+    set({ stats: EMPTY_STATS })
+  },
 }))
 
 export function replaceEngineForTests(nextEngine: EnginePort): void {
@@ -712,6 +750,9 @@ export function resetGameStoreForTests(): void {
     isHinting: false,
     hintPoint: null,
     viewPly: null,
+    // Re-read so a cleared localStorage starts every test from zero.
+    stats: loadStats(),
+    statsRecorded: false,
     parisText: '挑一张棋盘，我们从第一手开始。',
     errorMessage: null,
   })

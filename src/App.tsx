@@ -82,6 +82,8 @@ export default function App() {
   const setEngineStrength = useGameStore((state) => state.setEngineStrength)
   const setEngineChoice = useGameStore((state) => state.setEngineChoice)
   const setRuleSet = useGameStore((state) => state.setRuleSet)
+  const stats = useGameStore((state) => state.stats)
+  const resetStats = useGameStore((state) => state.resetStats)
   const startGame = useGameStore((state) => state.startGame)
   const exitToMenu = useGameStore((state) => state.exitToMenu)
   const restartGame = useGameStore((state) => state.restartGame)
@@ -127,6 +129,8 @@ export default function App() {
         onEngineChoiceChange={setEngineChoice}
         onRuleSetChange={setRuleSet}
         onStart={startGame}
+        stats={stats}
+        onResetStats={resetStats}
       />
     )
   }
